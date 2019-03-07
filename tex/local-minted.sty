@@ -1,9 +1,11 @@
 \ProvidesPackage{local-minted}[2014/04/27 Local minted options]
 
+\ifdefined\NoMinted
+\else
 \usepackage{minted}
 
 % Сюда вставлять общие опции
-\def\mintedoptions{linenos,frame=single,fontsize=\footnotesize,style=bw}
+\def\mintedoptions{linenos,frame=single,fontsize=\footnotesize,style=bw,fontfamily=cyrillicfontttnoftr}
 
 % Сюда пихать новые языки
 \newcommand{\makenewmintedenviromnents}[1]{%
@@ -26,5 +28,5 @@
 
 \renewcommand{\listingscaption}{Листинг}
 \renewcommand{\listoflistingscaption}{Листинги} 
-
+\fi
 \endinput

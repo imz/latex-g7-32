@@ -1,9 +1,11 @@
 # Tools
 
 LATEX=xelatex -interaction=nonstopmode -shell-escape
+# LATEX=pdflatex
 TD=./utils/texdepend
+GSCONV=./utils/gsconv.sh
 D2T=dot2tex -f pgf --crop --docpreamble "\usepackage[T2A]{fontenc} \usepackage[utf8]{inputenc} \usepackage[english, russian]{babel}"
-PDFTRIMWHITE=../../../utils/pdfcrop
+PDFTRIMWHITE=pdfcrop
 
 # Output file
 PDF=rpz.pdf
@@ -12,6 +14,7 @@ PDF=rpz.pdf
 DIA=graphics/dia
 DOT=graphics/dot
 SVG=graphics/svg
+IMG=graphics/img
 TEX=tex
 DEPS=.deps
 SRC=src
@@ -48,38 +51,37 @@ $(DEPS)/%-deps.mk: $(TEX)/% Makefile
 	(/bin/echo -n "$(PDF): " ; $(TD) -print=fi -format=1 $< | grep -v '^#' | xargs /bin/echo) > $@
 
 $(PDF): $(TEX)/$(MAINTEX).tex $(STYLES) $(BIBFILE)
-	cd tex && $(LATEX) $(MAINTEX) && bibtex $(MAINTEX) && $(LATEX) $(MAINTEX) && $(LATEX) $(MAINTEX) && cp $(PDF) ..
+	cd tex && $(LATEX) $(MAINTEX)
+	cd tex && bibtex $(MAINTEX)
+	cd tex && makeindex $(MAINTEX).nlo -s nomencl.ist -o $(MAINTEX).nls 
+	cd tex && $(LATEX) $(MAINTEX)
+	cd tex && $(LATEX) $(MAINTEX)
+	cp tex/$(PDF) .
 
-$(INC)/dia/%.eps: $(DIA)/%.dia
+$(INC)/dia/%.pdf: $(DIA)/%.dia
 	mkdir -p $(INC)/dia
-	dia -e $(@:%.pdf=%.eps) -t eps-pango $<
-
-# .dot -> .eps (via dot2tex)
-$(INC)/dot/%.eps: $(DOT)/%.dot
-	mkdir -p $(INC)/dot
-	dot -Teps $< > $@
+	dia -e $@-tmp.svg -t svg $<
+	inkscape -A $@-tmp.pdf $@-tmp.svg
+	$(PDFTRIMWHITE) $@-tmp.pdf $@
 
 $(INC)/svg/%.pdf : $(SVG)/%.svg
 	mkdir -p $(INC)/svg/
 # 	inkscape -A $@ $<
 # Обрезаем поля в svg автоматом:
-	inkscape -A $(INC)/svg/$*-tmp.pdf $< && cd $(INC)/svg && $(PDFTRIMWHITE) $*-tmp.pdf $*.pdf && rm $*-tmp.pdf
+	inkscape -A $(INC)/svg/$*-tmp.pdf $<
+	cd $(INC)/svg && \
+		$(PDFTRIMWHITE) $*-tmp.pdf $*.pdf && \
+		rm $*-tmp.pdf
 
+$(INC)/img/%.pdf: $(IMG)/%.*
+	mkdir -p $(INC)/img
+	convert $< -quality 100 $@
 
-# .eps --> .pdf
-$(INC)/%.pdf: $(INC)/%.eps
-	epstopdf --outfile $@ $<
-
-
-# .dot -> .tex (via dot2tex)
-$(INC)/dot/%.tex: $(DOT)/%.dot
+$(INC)/dot/%.pdf: $(DOT)/%.dot
 	mkdir -p $(INC)/dot
-	$(D2T) --preproc $< | $(D2T)  > $@
-# 	$(D2T) $< > $@
-
-# .dot -> .tex --> .pdf
-$(INC)/dot/%.pdf: $(INC)/dot/%.tex
-	$(LATEX) -output-directory=$(INC)/dot $<
+	dot -o$@-tmp.svg -Tsvg $<
+	inkscape -A $@-tmp.pdf $@-tmp.svg
+	$(PDFTRIMWHITE) $@-tmp.pdf $@
 
 $(INC)/src/%: $(SRC)/%
 	mkdir -p $(INC)/src
@@ -90,6 +92,9 @@ clean:
 # 	$(RM) $(DIA)/*.pdf $(DIA)/*.eps
 	$(RM) -r $(DEPS)
 	$(RM) -r $(INC)
+
+printpdfs: $(PDF)
+	$(GSCONV) $(PDF)
 
 distclean: clean
 
